@@ -84,8 +84,9 @@ class CanvasBP {
     this.onFinished = onFinished;
     this.settings = settings;
     this.animationId = null;
-    this._lastWidth = 0;
-    this._lastHeight = 0;
+    this._lastCssWidth = 0;
+    this._lastCssHeight = 0;
+    this._lastPixelRatio = 0;
     this._bgCache = null;
     this._bgCacheKey = "";
     this.active = false;
@@ -94,19 +95,27 @@ class CanvasBP {
   }
 
   _fixScale() {
-    const width = Math.max(1, Math.floor(window.innerWidth));
-    const height = Math.max(1, Math.floor(window.innerHeight));
+    const cssWidth = Math.max(1, Math.floor(window.innerWidth));
+    const cssHeight = Math.max(1, Math.floor(window.innerHeight));
+    const pixelRatio = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
 
-    if (width !== this._lastWidth || height !== this._lastHeight) {
+    if (
+      cssWidth !== this._lastCssWidth ||
+      cssHeight !== this._lastCssHeight ||
+      pixelRatio !== this._lastPixelRatio
+    ) {
+      const width = Math.max(1, Math.round(cssWidth * pixelRatio));
+      const height = Math.max(1, Math.round(cssHeight * pixelRatio));
       this.ctx.canvas.width = width;
       this.ctx.canvas.height = height;
-      this.ctx.canvas.style.width = `${width}px`;
-      this.ctx.canvas.style.height = `${height}px`;
-      this._lastWidth = width;
-      this._lastHeight = height;
-      this.widthHeightRat = width / height;
+      this.ctx.canvas.style.width = `${cssWidth}px`;
+      this.ctx.canvas.style.height = `${cssHeight}px`;
+      this._lastCssWidth = cssWidth;
+      this._lastCssHeight = cssHeight;
+      this._lastPixelRatio = pixelRatio;
+      this.widthHeightRat = cssWidth / cssHeight;
       if (typeof this.onCanvasResize === "function") {
-        this.onCanvasResize(width, height);
+        this.onCanvasResize(width, height, pixelRatio);
       }
       this._bgCache = null;
       this._bgCacheKey = "";
@@ -1011,12 +1020,11 @@ class PVisionWorker extends CanvasBP {
     this.total_time = Math.max(step, step * pointsPerLoop);
     this.t = 0;
     this.lastTime = null;
-    this.nextFinishAt = this.total_time;
 
     this.currentThousand = step;
     this.step = step;
+    this.nextFinishAt = this.total_time + this.step;
     this.currentBallIndex = 0;
-    this.finishBallIndex = 0;
 
     this.show1Ball = show1Ball;
     this.w = w;
@@ -1051,15 +1059,14 @@ class PVisionWorker extends CanvasBP {
 
     this.t += dt;
     if (this.t >= this.nextFinishAt) {
-      if (this.ballImageLocalPosses.length > 0) {
-        this.currentBallIndex = Math.max(
-          0,
-          Math.min(this.finishBallIndex, this.ballImageLocalPosses.length - 1)
-        );
-      }
       this.nextFinishAt += this.total_time;
       this.finished_lvl();
+      if (!this.active) {
+        this.lastTime = curTime;
+        return;
+      }
     }
+    this.updateBall();
 
     this.lastTime = curTime;
   }
@@ -1130,14 +1137,9 @@ class PVisionWorker extends CanvasBP {
     }
   }
 
-  animate() {
-    this.updateBall();
-    super.animate();
-  }
-
   start_lvl() {
     this.t = 0;
-    this.nextFinishAt = this.total_time;
+    this.nextFinishAt = this.total_time + this.step;
     this.currentThousand = this.step;
     this.currentBallIndex = 0;
     this.lastTime = performance.now();
@@ -1824,9 +1826,6 @@ export class EyeTrainerController {
 
     this.currentTrainerIndex = 0;
     this.trainingMode = "single";
-    this.defaultLoops = [1, 4, 4, 3, 1, 3, 2, 2, 2, 2, 1, 5, 1, 1];
-    // Zoom E (index 12): 68 * 4.4s ~= 5 minutes in comprehensive mode.
-    this.comprehensiveLoops = [1, 6, 8, 3, 1, 1, 1, 1, 1, 1, 1, 5, 68, 4];
     this.comprehensiveOrder = [];
     this.comprehensiveCursor = -1;
     this.singleOrder = [];
@@ -1843,29 +1842,134 @@ export class EyeTrainerController {
       this.restartCurrentTrainer();
     };
 
-    this.trainers = [
-      new ZigZaag("Vertical Waves", canvas, ctx, 1, this.settings, handleTrainerComplete),
-      new Star("Stellar Trail", canvas, ctx, 4, this.settings, handleTrainerComplete),
-      new InfinityBall("Infinity Trail", canvas, ctx, 4, this.settings, handleTrainerComplete),
-      new CircleBall("Circular Trail", canvas, ctx, 3, this.settings, handleTrainerComplete),
-      new ZigZaag2("Horizontal Wave", canvas, ctx, 1, this.settings, handleTrainerComplete),
-      new FlickBall("Flick Pulse", canvas, ctx, 3, this.settings, handleTrainerComplete),
-      new MultipleCircles("Horizontal Balls", canvas, ctx, 2, this.settings, handleTrainerComplete),
-      new MultipleCircles2("Vertical Balls", canvas, ctx, 2, this.settings, handleTrainerComplete),
-      new MultipleCirclesFast("Horizontal Fast", canvas, ctx, 2, this.settings, handleTrainerComplete),
-      new MultipleCircles2Fast("Vertical Fast", canvas, ctx, 2, this.settings, handleTrainerComplete),
-      new FreeBall("Free Ball", canvas, ctx, 1, this.settings, handleTrainerComplete),
-      new PvisionSun("Peripheral 1", canvas, ctx, 5, this.settings, handleTrainerComplete),
-      new ZoomETrainer("Zoom E", canvas, ctx, 1, this.settings, handleTrainerComplete),
-      new Pvision1("Peripheral 2", canvas, ctx, 1, this.settings, handleTrainerComplete),
+    const trainerDefinitions = [
+      {
+        id: "verticalWaves",
+        comprehensiveLoops: 1,
+        create: () =>
+          new ZigZaag("Vertical Waves", canvas, ctx, 1, this.settings, handleTrainerComplete),
+      },
+      {
+        id: "stellarTrail",
+        comprehensiveLoops: 6,
+        create: () =>
+          new Star("Stellar Trail", canvas, ctx, 4, this.settings, handleTrainerComplete),
+      },
+      {
+        id: "infinityTrail",
+        comprehensiveLoops: 16,
+        create: () =>
+          new InfinityBall("Infinity Trail", canvas, ctx, 4, this.settings, handleTrainerComplete),
+      },
+      {
+        id: "circularTrail",
+        comprehensiveLoops: 6,
+        create: () =>
+          new CircleBall("Circular Trail", canvas, ctx, 3, this.settings, handleTrainerComplete),
+      },
+      {
+        id: "horizontalWave",
+        comprehensiveLoops: 1,
+        create: () =>
+          new ZigZaag2("Horizontal Wave", canvas, ctx, 1, this.settings, handleTrainerComplete),
+      },
+      {
+        id: "flickPulse",
+        comprehensiveLoops: 1,
+        create: () =>
+          new FlickBall("Flick Pulse", canvas, ctx, 3, this.settings, handleTrainerComplete),
+      },
+      {
+        id: "horizontalBalls",
+        comprehensiveLoops: 1,
+        create: () =>
+          new MultipleCircles(
+            "Horizontal Balls",
+            canvas,
+            ctx,
+            2,
+            this.settings,
+            handleTrainerComplete
+          ),
+      },
+      {
+        id: "verticalBalls",
+        comprehensiveLoops: 1,
+        create: () =>
+          new MultipleCircles2(
+            "Vertical Balls",
+            canvas,
+            ctx,
+            2,
+            this.settings,
+            handleTrainerComplete
+          ),
+      },
+      {
+        id: "horizontalFast",
+        comprehensiveLoops: 1,
+        create: () =>
+          new MultipleCirclesFast(
+            "Horizontal Fast",
+            canvas,
+            ctx,
+            2,
+            this.settings,
+            handleTrainerComplete
+          ),
+      },
+      {
+        id: "verticalFast",
+        comprehensiveLoops: 1,
+        create: () =>
+          new MultipleCircles2Fast(
+            "Vertical Fast",
+            canvas,
+            ctx,
+            2,
+            this.settings,
+            handleTrainerComplete
+          ),
+      },
+      {
+        id: "freeBall",
+        comprehensiveLoops: 1,
+        create: () =>
+          new FreeBall("Free Ball", canvas, ctx, 1, this.settings, handleTrainerComplete),
+      },
+      {
+        id: "peripheral1",
+        comprehensiveLoops: 5,
+        create: () =>
+          new PvisionSun("Peripheral 1", canvas, ctx, 5, this.settings, handleTrainerComplete),
+      },
+      {
+        id: "zoomE",
+        // 68 * 4.4s is approximately five minutes in comprehensive mode.
+        comprehensiveLoops: 68,
+        create: () =>
+          new ZoomETrainer("Zoom E", canvas, ctx, 1, this.settings, handleTrainerComplete),
+      },
+      {
+        id: "peripheral2",
+        comprehensiveLoops: 4,
+        create: () =>
+          new Pvision1("Peripheral 2", canvas, ctx, 1, this.settings, handleTrainerComplete),
+      },
     ];
 
-    for (let i = 0; i < this.trainers.length; i += 1) {
-      this.trainers[i].defaultLoops = this.defaultLoops[i] ?? 1;
-    }
+    this.trainers = trainerDefinitions.map((definition) => {
+      const trainer = definition.create();
+      trainer.id = definition.id;
+      trainer.comprehensiveLoops = definition.comprehensiveLoops;
+      return trainer;
+    });
+    this.trainerIndexById = new Map(
+      this.trainers.map((trainer, index) => [trainer.id, index])
+    );
     this.comprehensiveOrder = this.trainers.map((_, index) => index);
-    const zoomEIndex = 12;
-    if (zoomEIndex >= 0 && zoomEIndex < this.comprehensiveOrder.length) {
+    const zoomEIndex = this.trainerIndexById.get("zoomE");
+    if (typeof zoomEIndex === "number") {
       this.comprehensiveOrder = [
         zoomEIndex,
         ...this.comprehensiveOrder.filter((index) => index !== zoomEIndex),
@@ -1883,7 +1987,7 @@ export class EyeTrainerController {
     const isComprehensive = this.trainingMode === "comprehensive";
     for (let i = 0; i < this.trainers.length; i += 1) {
       this.trainers[i].maxLoops = isComprehensive
-        ? (this.comprehensiveLoops[i] ?? 1)
+        ? (this.trainers[i].comprehensiveLoops ?? 1)
         : Number.MAX_SAFE_INTEGER;
     }
   }
@@ -1913,7 +2017,30 @@ export class EyeTrainerController {
     this.startSingleTrainer(this.currentTrainerIndex);
   }
 
-  startSingleTrainer(index) {
+  resolveTrainerIndex(trainerIdOrIndex) {
+    if (typeof trainerIdOrIndex === "string") {
+      return this.trainerIndexById.get(trainerIdOrIndex) ?? -1;
+    }
+    if (
+      typeof trainerIdOrIndex === "number" &&
+      Number.isInteger(trainerIdOrIndex) &&
+      trainerIdOrIndex >= 0 &&
+      trainerIdOrIndex < this.trainers.length
+    ) {
+      return trainerIdOrIndex;
+    }
+    return -1;
+  }
+
+  getTrainerIds() {
+    return this.trainers.map((trainer) => trainer.id);
+  }
+
+  startSingleTrainer(trainerIdOrIndex) {
+    const index = this.resolveTrainerIndex(trainerIdOrIndex);
+    if (index < 0) {
+      return;
+    }
     this.setTrainingMode("single");
     this.stopCurrentIfRunning();
     this.comprehensiveCursor = -1;

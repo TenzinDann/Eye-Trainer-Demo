@@ -6,7 +6,7 @@ const STORAGE_KEYS = {
   selectedSkin: "eyetrainer_selected_skin",
 };
 
-const EXERCISES = [
+export const EXERCISES = [
   {
     id: "comprehensive",
     mode: "comprehensive",
@@ -18,7 +18,7 @@ const EXERCISES = [
   {
     id: "zoomE",
     mode: "single",
-    backendIndex: 12,
+    engineId: "zoomE",
     name: "远近缩放",
     nameEn: "Zoom E",
     desc: "中央 E 视标来回缩放，训练远近调焦与注视稳定",
@@ -27,7 +27,7 @@ const EXERCISES = [
   {
     id: "verticalWaves",
     mode: "single",
-    backendIndex: 0,
+    engineId: "verticalWaves",
     name: "垂直波形",
     nameEn: "Vertical Waves",
     desc: "竖向波形路径，训练上下追踪稳定性",
@@ -36,7 +36,7 @@ const EXERCISES = [
   {
     id: "stellarTrail",
     mode: "single",
-    backendIndex: 1,
+    engineId: "stellarTrail",
     name: "星形轨迹",
     nameEn: "Stellar Trail",
     desc: "五角星折线路径，训练方向切换",
@@ -45,7 +45,7 @@ const EXERCISES = [
   {
     id: "infinityTrail",
     mode: "single",
-    backendIndex: 2,
+    engineId: "infinityTrail",
     name: "无限轨迹",
     nameEn: "Infinity Trail",
     desc: "∞ 轨迹平滑追踪，训练连续眼动",
@@ -54,7 +54,7 @@ const EXERCISES = [
   {
     id: "circularTrail",
     mode: "single",
-    backendIndex: 3,
+    engineId: "circularTrail",
     name: "环形轨迹",
     nameEn: "Circular Trail",
     desc: "圆形持续追踪，训练环向控制",
@@ -63,7 +63,7 @@ const EXERCISES = [
   {
     id: "horizontalWave",
     mode: "single",
-    backendIndex: 4,
+    engineId: "horizontalWave",
     name: "水平波形",
     nameEn: "Horizontal Wave",
     desc: "横向波形路径，训练左右追踪",
@@ -72,7 +72,7 @@ const EXERCISES = [
   {
     id: "flickPulse",
     mode: "single",
-    backendIndex: 5,
+    engineId: "flickPulse",
     name: "闪跳脉冲",
     nameEn: "Flick Pulse",
     desc: "多点闪跳切换，训练扫视反应",
@@ -81,7 +81,7 @@ const EXERCISES = [
   {
     id: "horizontalBalls",
     mode: "single",
-    backendIndex: 6,
+    engineId: "horizontalBalls",
     name: "横向多球",
     nameEn: "Horizontal Balls",
     desc: "多目标横向移动，训练分配注意力",
@@ -90,7 +90,7 @@ const EXERCISES = [
   {
     id: "verticalBalls",
     mode: "single",
-    backendIndex: 7,
+    engineId: "verticalBalls",
     name: "纵向多球",
     nameEn: "Vertical Balls",
     desc: "多目标纵向移动，训练切换追踪",
@@ -99,7 +99,7 @@ const EXERCISES = [
   {
     id: "horizontalFast",
     mode: "single",
-    backendIndex: 8,
+    engineId: "horizontalFast",
     name: "横向高速",
     nameEn: "Horizontal Fast",
     desc: "更快的横向多球节奏",
@@ -108,7 +108,7 @@ const EXERCISES = [
   {
     id: "verticalFast",
     mode: "single",
-    backendIndex: 9,
+    engineId: "verticalFast",
     name: "纵向高速",
     nameEn: "Vertical Fast",
     desc: "更快的纵向多球节奏",
@@ -117,7 +117,7 @@ const EXERCISES = [
   {
     id: "freeBall",
     mode: "single",
-    backendIndex: 10,
+    engineId: "freeBall",
     name: "自由球",
     nameEn: "Free Ball",
     desc: "随机平滑移动，训练稳定追踪",
@@ -126,7 +126,7 @@ const EXERCISES = [
   {
     id: "peripheral1",
     mode: "single",
-    backendIndex: 11,
+    engineId: "peripheral1",
     name: "外周视觉 1",
     nameEn: "Peripheral 1",
     desc: "双目标外周训练，强化边缘感知",
@@ -135,7 +135,7 @@ const EXERCISES = [
   {
     id: "peripheral2",
     mode: "single",
-    backendIndex: 13,
+    engineId: "peripheral2",
     name: "外周视觉 2",
     nameEn: "Peripheral 2",
     desc: "围绕图像目标切换注视点",
@@ -214,6 +214,13 @@ function buildDotPalette(skin) {
   };
 }
 
+function handleKeyboardActivation(event, callback) {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    callback();
+  }
+}
+
 export default function EyeTrainer() {
   const [screen, setScreen] = useState("menu");
   const [darkMode, setDarkMode] = useState(() => {
@@ -288,7 +295,7 @@ export default function EyeTrainer() {
     if (selectedExercise.mode === "comprehensive") {
       controller.startComprehensive();
     } else {
-      controller.startSingleTrainer(selectedExercise.backendIndex);
+      controller.startSingleTrainer(selectedExercise.engineId);
     }
 
     controllerRef.current = controller;
@@ -351,6 +358,8 @@ export default function EyeTrainer() {
           ref={canvasRef}
           width={window.innerWidth}
           height={window.innerHeight}
+          role="img"
+          aria-label={`${currentExerciseLabel} 动画训练区域`}
           style={{
             position: "absolute",
             inset: 0,
@@ -373,6 +382,7 @@ export default function EyeTrainer() {
           }}
         >
           <button
+            type="button"
             onClick={stopExercise}
             style={{
               background: chipBg,
@@ -389,6 +399,7 @@ export default function EyeTrainer() {
             ← 返回
           </button>
           <span
+            aria-live="polite"
             style={{
               color: textSecondary,
               fontSize: 13,
@@ -414,6 +425,8 @@ export default function EyeTrainer() {
           }}
         >
           <button
+            type="button"
+            aria-label="上一个训练"
             onClick={() => controllerRef.current?.prevTrainer()}
             style={{
               background: chipBg,
@@ -430,6 +443,8 @@ export default function EyeTrainer() {
             ←
           </button>
           <button
+            type="button"
+            aria-label="下一个训练"
             onClick={() => controllerRef.current?.nextTrainer()}
             style={{
               background: chipBg,
@@ -448,6 +463,8 @@ export default function EyeTrainer() {
         </div>
 
         <button
+          type="button"
+          aria-label={darkMode ? "切换为亮色模式" : "切换为深色模式"}
           onClick={() => setDarkMode((prev) => !prev)}
           style={{
             position: "absolute",
@@ -495,6 +512,7 @@ export default function EyeTrainer() {
         <div style={{ maxWidth: 640, margin: "0 auto", padding: "40px 24px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 40 }}>
             <button
+              type="button"
               onClick={() => setScreen("menu")}
               style={{
                 background: "none",
@@ -547,7 +565,11 @@ export default function EyeTrainer() {
                 }}
               >
                 <span style={{ fontSize: 14 }}>{item.label}</span>
-                <div
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={item.value}
+                  aria-label={item.label}
                   onClick={() => item.set(!item.value)}
                   style={{
                     width: 44,
@@ -557,10 +579,14 @@ export default function EyeTrainer() {
                     cursor: "pointer",
                     position: "relative",
                     transition: "background 0.2s",
+                    padding: 0,
+                    border: "none",
                   }}
                 >
-                  <div
+                  <span
+                    aria-hidden="true"
                     style={{
+                      display: "block",
                       position: "absolute",
                       top: 2,
                       left: item.value ? 22 : 2,
@@ -572,7 +598,7 @@ export default function EyeTrainer() {
                       boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
                     }}
                   />
-                </div>
+                </button>
               </div>
             ))}
           </div>
@@ -596,13 +622,20 @@ export default function EyeTrainer() {
             >
               UI 皮肤
             </h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+            <div
+              role="group"
+              aria-label="UI 皮肤"
+              style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}
+            >
               {Object.entries(SKINS).map(([key, skin]) => {
                 const c = darkMode ? skin.color : skin.lightColor;
                 const g = darkMode ? skin.glow : skin.lightGlow;
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={key}
+                    aria-label={`选择${skin.name}皮肤`}
+                    aria-pressed={selectedSkin === key}
                     onClick={() => setSelectedSkin(key)}
                     style={{
                       padding: 16,
@@ -612,10 +645,14 @@ export default function EyeTrainer() {
                       cursor: "pointer",
                       textAlign: "center",
                       transition: "all 0.2s",
+                      color: textPrimary,
+                      fontFamily: "inherit",
                     }}
                   >
-                    <div
+                    <span
+                      aria-hidden="true"
                       style={{
+                        display: "block",
                         width: 32,
                         height: 32,
                         borderRadius: "50%",
@@ -624,8 +661,8 @@ export default function EyeTrainer() {
                         margin: "0 auto 8px",
                       }}
                     />
-                    <div style={{ fontSize: 12 }}>{skin.name}</div>
-                  </div>
+                    <span style={{ display: "block", fontSize: 12 }}>{skin.name}</span>
+                  </button>
                 );
               })}
             </div>
@@ -643,6 +680,7 @@ export default function EyeTrainer() {
     );
   }
 
+  const logoOffsetX = -5;
   const glassCardBg = darkMode
     ? "linear-gradient(145deg, rgba(9,12,20,0.46), rgba(9,12,20,0.26))"
     : "linear-gradient(145deg, rgba(238,246,255,0.30), rgba(224,236,252,0.14))";
@@ -722,11 +760,21 @@ export default function EyeTrainer() {
 
         <div style={{ display: "flex", justifyContent: "center", gap: 12, marginBottom: 40 }}>
           {[
-            { label: "⚙ 设置", onClick: () => setScreen("settings") },
-            { label: darkMode ? "☀ 亮色" : "🌙 暗色", onClick: () => setDarkMode(!darkMode) },
+            {
+              label: "⚙ 设置",
+              ariaLabel: "打开设置",
+              onClick: () => setScreen("settings"),
+            },
+            {
+              label: darkMode ? "☀ 亮色" : "🌙 暗色",
+              ariaLabel: darkMode ? "切换为亮色模式" : "切换为深色模式",
+              onClick: () => setDarkMode(!darkMode),
+            },
           ].map((btn, i) => (
             <button
+              type="button"
               key={i}
+              aria-label={btn.ariaLabel}
               onClick={btn.onClick}
               style={{
                 background: darkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)",
@@ -757,7 +805,13 @@ export default function EyeTrainer() {
             return (
             <div
               key={exercise.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`开始${exercise.name}训练`}
               onClick={() => startExercise(exercise)}
+              onKeyDown={(event) =>
+                handleKeyboardActivation(event, () => startExercise(exercise))
+              }
               style={{
                 background: glassCardBg,
                 border: `1px solid ${glassCardBorder}`,
@@ -775,6 +829,8 @@ export default function EyeTrainer() {
               }}
               onMouseEnter={() => setHoveredExerciseId(exercise.id)}
               onMouseLeave={() => setHoveredExerciseId(null)}
+              onFocus={() => setHoveredExerciseId(exercise.id)}
+              onBlur={() => setHoveredExerciseId(null)}
             >
               <div
                 style={{
@@ -883,16 +939,20 @@ export default function EyeTrainer() {
             paddingBottom: "clamp(32px, 6vw, 20px)",
           }}
         >
-          <div
+          <img
+            src="personal-logo.svg"
+            alt="Personal Logo"
             style={{
-              color: textSecondary,
-              fontSize: 12,
-              letterSpacing: 1.2,
-              textTransform: "uppercase",
+              height: 88,
+              width: "auto",
+              maxWidth: "62vw",
+              objectFit: "contain",
+              filter: darkMode ? "brightness(0) invert(1)" : "brightness(0)",
+              opacity: 1,
+              display: "block",
+              transform: `translateX(${logoOffsetX}px)`,
             }}
-          >
-            Eye Trainer
-          </div>
+          />
         </div>
 
       </div>
