@@ -1,6 +1,6 @@
 # Eye Trainer
 
-Official Website: [https://tenzindann.github.io/eye-trainer/](https://tenzindann.github.io/eye-trainer/)
+Official Website: [https://tenzindann.com/eye-trainer/](https://tenzindann.com/eye-trainer/)
 
 ## Overview
 
